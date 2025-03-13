@@ -69,15 +69,34 @@ export const ImageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       // Simulate API call to DALL-E with a timeout
       await new Promise(resolve => setTimeout(resolve, 2000));
       
+      // Use a cleaned prompt for the URL to avoid issues with special characters
+      const cleanedPrompt = encodeURIComponent(prompt.trim());
+      
       // Mock response - in real app, this would call the OpenAI API
       const newImage: GeneratedImage = {
         id: Date.now().toString(),
         prompt,
         // Use a placeholder image from Unsplash related to AI for demonstration
-        imageUrl: `https://source.unsplash.com/random/600x600/?${encodeURIComponent(prompt)}`,
+        imageUrl: `https://source.unsplash.com/random/600x600/?${cleanedPrompt}`,
         createdAt: new Date().toISOString(),
       };
 
+      // Validate the URL can be accessed (pre-fetch the image)
+      const imgCheck = new Image();
+      imgCheck.src = newImage.imageUrl;
+      
+      await new Promise((resolve, reject) => {
+        imgCheck.onload = resolve;
+        imgCheck.onerror = () => {
+          console.error("Pre-fetch image failed, using fallback");
+          // Fallback to a simpler query if the specific one fails
+          newImage.imageUrl = `https://source.unsplash.com/random/600x600/?digital`;
+          resolve(null);
+        };
+      });
+
+      console.log("Generated image with URL:", newImage.imageUrl);
+      
       setGeneratedImages(prev => [newImage, ...prev]);
       
       // Add to history if user is logged in

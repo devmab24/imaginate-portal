@@ -39,6 +39,10 @@ const ImageCard: React.FC<ImageCardProps> = ({ image }) => {
           alt={image.prompt}
           className="w-full h-full object-cover rounded-t-lg"
           loading="lazy"
+          onError={(e) => {
+            console.error("Image failed to load:", image.imageUrl);
+            e.currentTarget.src = "/placeholder.svg";
+          }}
         />
         <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 transition-all duration-300 flex items-center justify-center opacity-0 group-hover:opacity-100">
           <Button 

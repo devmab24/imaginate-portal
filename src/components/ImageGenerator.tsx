@@ -28,6 +28,7 @@ const ImageGenerator = () => {
 
     const result = await generateImage(prompt);
     if (result) {
+      console.log("Image generated successfully:", result);
       setCurrentImage(result);
       setPrompt('');
     }
@@ -111,6 +112,10 @@ const ImageGenerator = () => {
               src={currentImage.imageUrl} 
               alt={currentImage.prompt}
               className="w-full h-auto object-cover rounded-t-lg"
+              onError={(e) => {
+                console.error("Image failed to load:", currentImage.imageUrl);
+                e.currentTarget.src = "/placeholder.svg";
+              }}
             />
             <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 transition-all duration-300 flex items-center justify-center opacity-0 group-hover:opacity-100">
               <Button 
