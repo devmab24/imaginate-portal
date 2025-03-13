@@ -1,10 +1,11 @@
-
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Download, ImageIcon } from 'lucide-react';
 import { GeneratedImage } from '@/contexts/ImageContext';
 import { toast } from 'sonner';
+import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/integrations/supabase/client';
 
 interface ImageCardProps {
   image: GeneratedImage;
@@ -13,13 +14,44 @@ interface ImageCardProps {
 const ImageCard: React.FC<ImageCardProps> = ({ image }) => {
   const [imageLoaded, setImageLoaded] = useState(false);
   const [imageError, setImageError] = useState(false);
+  const [imageUrl, setImageUrl] = useState(image.imageUrl);
+  const { isAuthenticated } = useAuth();
+
+  useEffect(() => {
+    const refreshSignedUrl = async () => {
+      if (isAuthenticated && image.imageUrl.includes('token=') && image.imageUrl.includes('supabase')) {
+        try {
+          const pathMatch = image.imageUrl.match(/\/storage\/v1\/object\/public\/images\/([^?]+)/);
+          if (pathMatch && pathMatch[1]) {
+            const path = decodeURIComponent(pathMatch[1]);
+            
+            const { data, error } = await supabase
+              .storage
+              .from('images')
+              .createSignedUrl(path, 60 * 60);
+              
+            if (error) {
+              throw error;
+            }
+            
+            if (data) {
+              setImageUrl(data.signedUrl);
+            }
+          }
+        } catch (error) {
+          console.error('Error refreshing signed URL:', error);
+        }
+      }
+    };
+    
+    refreshSignedUrl();
+  }, [image.imageUrl, isAuthenticated]);
 
   const handleDownload = async () => {
     try {
-      const response = await fetch(image.imageUrl);
+      const response = await fetch(imageUrl);
       const blob = await response.blob();
       
-      // Create a download link and trigger it
       const downloadLink = document.createElement('a');
       downloadLink.href = URL.createObjectURL(blob);
       downloadLink.download = `imaginate-${image.id}.jpg`;
@@ -40,7 +72,7 @@ const ImageCard: React.FC<ImageCardProps> = ({ image }) => {
   };
 
   const handleImageError = (e: React.SyntheticEvent<HTMLImageElement>) => {
-    console.error("Image failed to load:", image.imageUrl);
+    console.error("Image failed to load:", imageUrl);
     setImageError(true);
     setImageLoaded(false);
     e.currentTarget.src = "/placeholder.svg";
@@ -56,7 +88,7 @@ const ImageCard: React.FC<ImageCardProps> = ({ image }) => {
         )}
         
         <img 
-          src={image.imageUrl} 
+          src={imageUrl} 
           alt={image.prompt}
           className={`w-full h-full object-cover rounded-t-lg ${!imageLoaded && !imageError ? 'hidden' : ''}`}
           loading="lazy"

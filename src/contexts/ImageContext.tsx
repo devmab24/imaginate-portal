@@ -2,6 +2,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import { useAuth } from './AuthContext';
+import { supabase } from '@/integrations/supabase/client';
 
 export type GeneratedImage = {
   id: string;
@@ -32,30 +33,64 @@ export const ImageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [generatedImages, setGeneratedImages] = useState<GeneratedImage[]>([]);
   const [isGenerating, setIsGenerating] = useState(false);
   const [history, setHistory] = useState<GeneratedImage[]>([]);
-  const { user } = useAuth();
+  const { user, isAuthenticated } = useAuth();
 
-  // Load history from localStorage on component mount
+  // Load history from Supabase when user is authenticated
   useEffect(() => {
-    if (user) {
-      try {
-        const savedHistory = localStorage.getItem(`imageHistory-${user.id}`);
-        if (savedHistory) {
-          setHistory(JSON.parse(savedHistory));
-        }
-      } catch (error) {
-        console.error('Error loading image history:', error);
-      }
+    if (isAuthenticated && user) {
+      loadUserImages();
     } else {
       setHistory([]);
     }
-  }, [user]);
+  }, [isAuthenticated, user]);
 
-  // Save history to localStorage when it changes
-  useEffect(() => {
-    if (user && history.length > 0) {
-      localStorage.setItem(`imageHistory-${user.id}`, JSON.stringify(history));
+  // Load user's images from Supabase
+  const loadUserImages = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('images')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        throw error;
+      }
+
+      if (data) {
+        const formattedImages: GeneratedImage[] = await Promise.all(
+          data.map(async (item) => {
+            // Get image URL from storage
+            const { data: urlData, error: urlError } = await supabase
+              .storage
+              .from('images')
+              .createSignedUrl(item.storage_path, 60 * 60); // 1 hour expiry
+
+            if (urlError) {
+              console.error('Error getting image URL:', urlError);
+              return {
+                id: item.id,
+                prompt: item.prompt,
+                imageUrl: '/placeholder.svg', // Fallback
+                createdAt: item.created_at,
+              };
+            }
+
+            return {
+              id: item.id,
+              prompt: item.prompt,
+              imageUrl: urlData.signedUrl,
+              createdAt: item.created_at,
+            };
+          })
+        );
+
+        setHistory(formattedImages);
+      }
+    } catch (error) {
+      console.error('Error loading user images:', error);
+      toast.error('Failed to load your images.');
     }
-  }, [history, user]);
+  };
 
   const generateImage = async (prompt: string): Promise<GeneratedImage | null> => {
     if (!prompt.trim()) {
@@ -69,10 +104,6 @@ export const ImageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       // Simulate API call to DALL-E with a timeout
       await new Promise(resolve => setTimeout(resolve, 2000));
       
-      // Create a more reliable image URL for testing
-      // Instead of using dynamic search queries which might not return results,
-      // we'll use a more reliable approach
-      
       // Generate a random number to avoid caching issues
       const randomSeed = Math.floor(Math.random() * 1000);
       
@@ -80,15 +111,9 @@ export const ImageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       const imageCategories = ['nature', 'technology', 'abstract', 'art', 'space'];
       const randomCategory = imageCategories[Math.floor(Math.random() * imageCategories.length)];
       
-      const newImage: GeneratedImage = {
-        id: Date.now().toString(),
-        prompt,
-        // Use a reliable image source with random seed to avoid caching
-        imageUrl: `https://source.unsplash.com/featured/600x600/?${randomCategory}&sig=${randomSeed}`,
-        createdAt: new Date().toISOString(),
-      };
-
-      console.log("Attempting to generate image with URL:", newImage.imageUrl);
+      // Use Unsplash for demonstration - in a real app, this would be an AI service
+      const imageUrl = `https://source.unsplash.com/featured/600x600/?${randomCategory}&sig=${randomSeed}`;
+      console.log("Attempting to generate image with URL:", imageUrl);
       
       // Pre-fetch the image to ensure it's valid
       const imgCheck = new Image();
@@ -101,24 +126,83 @@ export const ImageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         
         imgCheck.onerror = () => {
           console.error("Pre-fetch image failed, using fallback");
-          // Use a very reliable fallback that always works
-          newImage.imageUrl = `https://picsum.photos/seed/${randomSeed}/600/600`;
           resolve();
         };
         
         // Start loading the image
-        imgCheck.src = newImage.imageUrl;
+        imgCheck.src = imageUrl;
       });
 
-      console.log("Generated image with final URL:", newImage.imageUrl);
+      let newImage: GeneratedImage = {
+        id: Date.now().toString(),
+        prompt,
+        imageUrl,
+        createdAt: new Date().toISOString(),
+      };
       
-      setGeneratedImages(prev => [newImage, ...prev]);
-      
-      // Add to history if user is logged in
-      if (user) {
-        setHistory(prev => [newImage, ...prev]);
+      // Save to Supabase if user is logged in
+      if (isAuthenticated && user) {
+        try {
+          // First, fetch the image as a Blob
+          const response = await fetch(imageUrl);
+          const blob = await response.blob();
+          
+          // Create a file from the blob
+          const file = new File([blob], `image-${Date.now()}.jpg`, { type: 'image/jpeg' });
+          
+          // Upload to Supabase Storage
+          const filePath = `${user.id}/${Date.now()}-${file.name}`;
+          const { data: uploadData, error: uploadError } = await supabase
+            .storage
+            .from('images')
+            .upload(filePath, file);
+            
+          if (uploadError) {
+            throw uploadError;
+          }
+          
+          // Save metadata to 'images' table
+          const { data: imageData, error: imageError } = await supabase
+            .from('images')
+            .insert({
+              prompt,
+              storage_path: uploadData.path,
+              user_id: user.id
+            })
+            .select('*')
+            .single();
+            
+          if (imageError) {
+            throw imageError;
+          }
+          
+          // Get signed URL for the uploaded image
+          const { data: urlData, error: urlError } = await supabase
+            .storage
+            .from('images')
+            .createSignedUrl(uploadData.path, 60 * 60); // 1 hour expiry
+            
+          if (urlError) {
+            throw urlError;
+          }
+          
+          // Update newImage with Supabase data
+          newImage = {
+            id: imageData.id,
+            prompt: imageData.prompt,
+            imageUrl: urlData.signedUrl,
+            createdAt: imageData.created_at
+          };
+          
+          // Refresh history after adding a new image
+          await loadUserImages();
+        } catch (error) {
+          console.error('Error saving image to Supabase:', error);
+          toast.error('Image generated but could not be saved to your account.');
+        }
       }
-      
+
+      setGeneratedImages(prev => [newImage, ...prev]);
       toast.success('Image generated successfully!');
       return newImage;
     } catch (error) {
@@ -130,12 +214,51 @@ export const ImageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   };
 
-  const clearHistory = () => {
-    if (user) {
-      localStorage.removeItem(`imageHistory-${user.id}`);
+  const clearHistory = async () => {
+    if (isAuthenticated && user) {
+      try {
+        // Get all user's images
+        const { data, error } = await supabase
+          .from('images')
+          .select('storage_path');
+          
+        if (error) {
+          throw error;
+        }
+        
+        // Delete from storage
+        if (data && data.length > 0) {
+          const paths = data.map(item => item.storage_path);
+          const { error: storageError } = await supabase
+            .storage
+            .from('images')
+            .remove(paths);
+            
+          if (storageError) {
+            console.error('Error removing from storage:', storageError);
+          }
+        }
+        
+        // Delete from images table
+        const { error: deleteError } = await supabase
+          .from('images')
+          .delete()
+          .eq('user_id', user.id);
+          
+        if (deleteError) {
+          throw deleteError;
+        }
+        
+        setHistory([]);
+        toast.success('History cleared successfully!');
+      } catch (error) {
+        console.error('Error clearing history:', error);
+        toast.error('Failed to clear history. Please try again.');
+      }
+    } else {
+      setHistory([]);
+      toast.success('History cleared successfully!');
     }
-    setHistory([]);
-    toast.success('History cleared successfully!');
   };
 
   return (
