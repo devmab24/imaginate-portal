@@ -1,8 +1,8 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Download } from 'lucide-react';
+import { Download, ImageIcon } from 'lucide-react';
 import { GeneratedImage } from '@/contexts/ImageContext';
 import { toast } from 'sonner';
 
@@ -11,6 +11,9 @@ interface ImageCardProps {
 }
 
 const ImageCard: React.FC<ImageCardProps> = ({ image }) => {
+  const [imageLoaded, setImageLoaded] = useState(false);
+  const [imageError, setImageError] = useState(false);
+
   const handleDownload = async () => {
     try {
       const response = await fetch(image.imageUrl);
@@ -31,24 +34,49 @@ const ImageCard: React.FC<ImageCardProps> = ({ image }) => {
     }
   };
 
+  const handleImageLoad = () => {
+    setImageLoaded(true);
+    setImageError(false);
+  };
+
+  const handleImageError = (e: React.SyntheticEvent<HTMLImageElement>) => {
+    console.error("Image failed to load:", image.imageUrl);
+    setImageError(true);
+    setImageLoaded(false);
+    e.currentTarget.src = "/placeholder.svg";
+  };
+
   return (
     <Card className="overflow-hidden h-full flex flex-col">
       <div className="relative group aspect-square">
+        {!imageLoaded && !imageError && (
+          <div className="w-full h-full flex items-center justify-center bg-gray-100">
+            <div className="animate-pulse w-12 h-12 rounded-full bg-gray-200"></div>
+          </div>
+        )}
+        
         <img 
           src={image.imageUrl} 
           alt={image.prompt}
-          className="w-full h-full object-cover rounded-t-lg"
+          className={`w-full h-full object-cover rounded-t-lg ${!imageLoaded && !imageError ? 'hidden' : ''}`}
           loading="lazy"
-          onError={(e) => {
-            console.error("Image failed to load:", image.imageUrl);
-            e.currentTarget.src = "/placeholder.svg";
-          }}
+          onLoad={handleImageLoad}
+          onError={handleImageError}
         />
+        
+        {imageError && (
+          <div className="w-full h-full flex flex-col items-center justify-center bg-gray-100 text-gray-500">
+            <ImageIcon size={32} />
+            <p className="mt-2 text-xs">Image not available</p>
+          </div>
+        )}
+        
         <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 transition-all duration-300 flex items-center justify-center opacity-0 group-hover:opacity-100">
           <Button 
             onClick={handleDownload}
             variant="secondary"
             className="flex items-center space-x-2"
+            disabled={imageError}
           >
             <Download size={16} />
             <span>Download</span>
@@ -69,6 +97,7 @@ const ImageCard: React.FC<ImageCardProps> = ({ image }) => {
             size="sm" 
             className="text-imaginate-purple hover:bg-imaginate-purple/10 h-8 px-2"
             onClick={handleDownload}
+            disabled={imageError}
           >
             <Download size={14} />
           </Button>

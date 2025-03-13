@@ -1,12 +1,13 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { 
   Wand2, 
   Download,
-  Loader2 
+  Loader2,
+  ImageIcon
 } from 'lucide-react';
 import { useImage, GeneratedImage } from '@/contexts/ImageContext';
 import { useAuth } from '@/contexts/AuthContext';
@@ -18,6 +19,16 @@ const ImageGenerator = () => {
   const { generateImage, isGenerating } = useImage();
   const { isAuthenticated } = useAuth();
   const [currentImage, setCurrentImage] = useState<GeneratedImage | null>(null);
+  const [imageLoaded, setImageLoaded] = useState(false);
+  const [imageError, setImageError] = useState(false);
+
+  // Reset image states when a new image is being generated
+  useEffect(() => {
+    if (isGenerating) {
+      setImageLoaded(false);
+      setImageError(false);
+    }
+  }, [isGenerating]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -26,9 +37,13 @@ const ImageGenerator = () => {
       return;
     }
 
+    // Reset image states
+    setImageLoaded(false);
+    setImageError(false);
+    
     const result = await generateImage(prompt);
     if (result) {
-      console.log("Image generated successfully:", result);
+      console.log("Image generation successful, URL:", result.imageUrl);
       setCurrentImage(result);
       setPrompt('');
     }
@@ -54,6 +69,19 @@ const ImageGenerator = () => {
       console.error('Error downloading image:', error);
       toast.error('Failed to download image');
     }
+  };
+
+  const handleImageLoad = () => {
+    console.log("Image loaded successfully");
+    setImageLoaded(true);
+    setImageError(false);
+  };
+
+  const handleImageError = (e: React.SyntheticEvent<HTMLImageElement>) => {
+    console.error("Image failed to load:", currentImage?.imageUrl);
+    setImageError(true);
+    setImageLoaded(false);
+    e.currentTarget.src = "/placeholder.svg";
   };
 
   return (
@@ -108,20 +136,33 @@ const ImageGenerator = () => {
       {currentImage && !isGenerating && (
         <Card className="mt-8 overflow-hidden">
           <div className="relative group">
+            {!imageLoaded && !imageError && (
+              <div className="w-full aspect-square flex items-center justify-center bg-gray-100">
+                <Loader2 className="animate-spin text-imaginate-purple" size={48} />
+              </div>
+            )}
+            
             <img 
               src={currentImage.imageUrl} 
               alt={currentImage.prompt}
-              className="w-full h-auto object-cover rounded-t-lg"
-              onError={(e) => {
-                console.error("Image failed to load:", currentImage.imageUrl);
-                e.currentTarget.src = "/placeholder.svg";
-              }}
+              className={`w-full h-auto object-cover rounded-t-lg ${!imageLoaded && !imageError ? 'hidden' : ''}`}
+              onLoad={handleImageLoad}
+              onError={handleImageError}
             />
+            
+            {imageError && (
+              <div className="w-full aspect-square flex flex-col items-center justify-center bg-gray-100 text-gray-500">
+                <ImageIcon size={48} />
+                <p className="mt-2">Could not load image</p>
+              </div>
+            )}
+            
             <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 transition-all duration-300 flex items-center justify-center opacity-0 group-hover:opacity-100">
               <Button 
                 onClick={handleDownload}
                 variant="secondary"
                 className="flex items-center space-x-2"
+                disabled={imageError}
               >
                 <Download size={16} />
                 <span>Download</span>
@@ -140,6 +181,7 @@ const ImageGenerator = () => {
                 size="sm" 
                 className="text-imaginate-purple"
                 onClick={handleDownload}
+                disabled={imageError}
               >
                 <Download size={16} className="mr-1" />
                 Download
