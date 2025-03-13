@@ -1,0 +1,77 @@
+
+import React from 'react';
+import { Card } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Download } from 'lucide-react';
+import { GeneratedImage } from '@/contexts/ImageContext';
+import { toast } from 'sonner';
+
+interface ImageCardProps {
+  image: GeneratedImage;
+}
+
+const ImageCard: React.FC<ImageCardProps> = ({ image }) => {
+  const handleDownload = async () => {
+    try {
+      const response = await fetch(image.imageUrl);
+      const blob = await response.blob();
+      
+      // Create a download link and trigger it
+      const downloadLink = document.createElement('a');
+      downloadLink.href = URL.createObjectURL(blob);
+      downloadLink.download = `imaginate-${image.id}.jpg`;
+      document.body.appendChild(downloadLink);
+      downloadLink.click();
+      document.body.removeChild(downloadLink);
+      
+      toast.success('Image downloaded successfully');
+    } catch (error) {
+      console.error('Error downloading image:', error);
+      toast.error('Failed to download image');
+    }
+  };
+
+  return (
+    <Card className="overflow-hidden h-full flex flex-col">
+      <div className="relative group aspect-square">
+        <img 
+          src={image.imageUrl} 
+          alt={image.prompt}
+          className="w-full h-full object-cover rounded-t-lg"
+          loading="lazy"
+        />
+        <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 transition-all duration-300 flex items-center justify-center opacity-0 group-hover:opacity-100">
+          <Button 
+            onClick={handleDownload}
+            variant="secondary"
+            className="flex items-center space-x-2"
+          >
+            <Download size={16} />
+            <span>Download</span>
+          </Button>
+        </div>
+      </div>
+      
+      <div className="p-3 flex flex-col flex-grow">
+        <h3 className="font-medium text-sm line-clamp-2 flex-grow">
+          "{image.prompt}"
+        </h3>
+        <div className="flex justify-between items-center mt-2">
+          <span className="text-xs text-gray-500">
+            {new Date(image.createdAt).toLocaleDateString()}
+          </span>
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            className="text-imaginate-purple hover:bg-imaginate-purple/10 h-8 px-2"
+            onClick={handleDownload}
+          >
+            <Download size={14} />
+          </Button>
+        </div>
+      </div>
+    </Card>
+  );
+};
+
+export default ImageCard;
