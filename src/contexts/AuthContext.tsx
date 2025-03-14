@@ -154,14 +154,26 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const login = async (email: string, password: string) => {
     try {
       setIsLoading(true);
+      console.log("Attempting login with email:", email);
+      
       const { error, data } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
 
       if (error) {
-        throw error;
+        console.error('Login error details:', error);
+        
+        if (error.message.includes('Invalid login credentials')) {
+          throw new Error('Invalid email or password. Please check your credentials and try again.');
+        } else if (error.message.includes('Email not confirmed')) {
+          throw new Error('Please confirm your email address before logging in. Check your inbox for a confirmation link.');
+        } else {
+          throw error;
+        }
       }
+
+      console.log("Login successful, user data:", data.user);
 
       if (data.user) {
         await updateLastLogin(data.user.id);
@@ -181,7 +193,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const signup = async (email: string, password: string, name?: string) => {
     try {
       setIsLoading(true);
-      const { error } = await supabase.auth.signUp({
+      console.log("Attempting signup with email:", email);
+      
+      const { error, data } = await supabase.auth.signUp({
         email,
         password,
         options: {
@@ -192,10 +206,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       });
 
       if (error) {
+        console.error('Signup error details:', error);
         throw error;
       }
 
-      toast.success('Account created successfully! Please check your email for verification.');
+      console.log("Signup response:", data);
+      
+      if (data.user) {
+        console.log("User created with ID:", data.user.id);
+        // Check if email confirmation is required
+        if (data.user.identities && data.user.identities.length === 0) {
+          toast.error('This email is already registered. Please try logging in instead.');
+        } else if (!data.user.confirmed_at) {
+          toast.success('Account created successfully! Please check your email for verification.');
+        } else {
+          toast.success('Account created successfully!');
+        }
+      }
     } catch (error) {
       console.error('Signup error:', error);
       toast.error(error instanceof Error ? error.message : 'Failed to create account. Please try again.');
