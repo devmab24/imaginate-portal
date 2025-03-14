@@ -101,54 +101,20 @@ export const ImageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setIsGenerating(true);
 
     try {
-      // Generate a variety of random categories for more reliable image generation
-      const imageCategories = [
-        'landscape', 'portrait', 'animal', 'nature', 'city', 'abstract', 
-        'technology', 'food', 'architecture', 'art', 'space', 'ocean'
-      ];
-      
-      // Create a timestamp to avoid caching issues
+      // Generate a fixed URL with a timestamp to avoid caching
       const timestamp = Date.now();
       
-      // Use multiple random values for more variety
-      const randomCategory = imageCategories[Math.floor(Math.random() * imageCategories.length)];
-      const randomSeed = Math.floor(Math.random() * 10000);
+      // Use Picsum Photos for reliable placeholder image generation
+      // This ensures we get a different image each time
+      const imageUrl = `https://picsum.photos/seed/${prompt.replace(/\s+/g, '')}-${timestamp}/800/800`;
       
-      // Use higher resolution images and multiple parameters to avoid caching
-      const imageUrl = `https://source.unsplash.com/featured/800x800/?${randomCategory},${prompt.split(' ').join(',')}&sig=${randomSeed}&t=${timestamp}`;
+      console.log("Generating image with URL:", imageUrl);
       
-      console.log("Attempting to generate image with URL:", imageUrl);
-      
-      // Pre-load the image to ensure it's valid
-      await new Promise<void>((resolve, reject) => {
-        const imgCheck = new Image();
-        
-        const timeoutId = setTimeout(() => {
-          reject(new Error("Image loading timed out"));
-        }, 15000); // 15 second timeout
-        
-        imgCheck.onload = () => {
-          console.log("Image pre-fetch successful:", imgCheck.src);
-          clearTimeout(timeoutId);
-          resolve();
-        };
-        
-        imgCheck.onerror = () => {
-          console.error("Pre-fetch image failed, trying fallback");
-          clearTimeout(timeoutId);
-          
-          // Try a different category as fallback
-          const fallbackCategory = imageCategories[Math.floor(Math.random() * imageCategories.length)];
-          imgCheck.src = `https://source.unsplash.com/featured/800x800/?${fallbackCategory}&sig=${Date.now()}`;
-        };
-        
-        // Start loading the image
-        imgCheck.crossOrigin = "anonymous";
-        imgCheck.src = imageUrl;
-      });
+      // Wait briefly to simulate AI generation time
+      await new Promise(resolve => setTimeout(resolve, 2000));
 
       let newImage: GeneratedImage = {
-        id: Date.now().toString(),
+        id: timestamp.toString(),
         prompt,
         imageUrl,
         createdAt: new Date().toISOString(),
@@ -166,10 +132,10 @@ export const ImageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           }
           
           // Create a file from the blob
-          const file = new File([blob], `image-${Date.now()}.jpg`, { type: 'image/jpeg' });
+          const file = new File([blob], `image-${timestamp}.jpg`, { type: 'image/jpeg' });
           
           // Upload to Supabase Storage
-          const filePath = `${user.id}/${Date.now()}-${file.name}`;
+          const filePath = `${user.id}/${timestamp}-${file.name}`;
           const { data: uploadData, error: uploadError } = await supabase
             .storage
             .from('images')

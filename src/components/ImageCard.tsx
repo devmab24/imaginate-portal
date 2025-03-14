@@ -128,7 +128,6 @@ const ImageCard: React.FC<ImageCardProps> = ({ image }) => {
           loading="lazy"
           onLoad={handleImageLoad}
           onError={handleImageError}
-          crossOrigin="anonymous"
         />
         
         {imageError && (

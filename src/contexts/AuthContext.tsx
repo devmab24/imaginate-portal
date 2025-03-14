@@ -26,6 +26,8 @@ type AuthContextType = {
   signup: (email: string, password: string, name?: string) => Promise<void>;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
+  loginWithGoogle: () => Promise<void>;
+  loginWithGithub: () => Promise<void>;
 };
 
 // Create the context with a default value
@@ -37,6 +39,8 @@ const AuthContext = createContext<AuthContextType>({
   signup: async () => {},
   logout: async () => {},
   refreshUser: async () => {},
+  loginWithGoogle: async () => {},
+  loginWithGithub: async () => {},
 });
 
 // Custom hook to use the auth context
@@ -189,6 +193,74 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  // Social login with Google
+  const loginWithGoogle = async () => {
+    try {
+      setIsLoading(true);
+      console.log("Attempting Google login");
+      
+      const { error, data } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: window.location.origin,
+        },
+      });
+
+      if (error) {
+        console.error('Google login error details:', error);
+        throw error;
+      }
+
+      if (!data.url) {
+        throw new Error('Failed to get OAuth URL from Supabase');
+      }
+
+      // The redirect happens automatically
+      window.location.href = data.url;
+      
+    } catch (error) {
+      console.error('Google login error:', error);
+      toast.error(error instanceof Error ? error.message : 'Failed to login with Google. Please try again.');
+      throw error;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Social login with GitHub
+  const loginWithGithub = async () => {
+    try {
+      setIsLoading(true);
+      console.log("Attempting GitHub login");
+      
+      const { error, data } = await supabase.auth.signInWithOAuth({
+        provider: 'github',
+        options: {
+          redirectTo: window.location.origin,
+        },
+      });
+
+      if (error) {
+        console.error('GitHub login error details:', error);
+        throw error;
+      }
+
+      if (!data.url) {
+        throw new Error('Failed to get OAuth URL from Supabase');
+      }
+
+      // The redirect happens automatically
+      window.location.href = data.url;
+      
+    } catch (error) {
+      console.error('GitHub login error:', error);
+      toast.error(error instanceof Error ? error.message : 'Failed to login with GitHub. Please try again.');
+      throw error;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   // Signup function
   const signup = async (email: string, password: string, name?: string) => {
     try {
@@ -262,6 +334,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         signup,
         logout,
         refreshUser,
+        loginWithGoogle,
+        loginWithGithub,
       }}
     >
       {children}
