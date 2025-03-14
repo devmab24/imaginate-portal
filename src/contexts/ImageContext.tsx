@@ -101,35 +101,49 @@ export const ImageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setIsGenerating(true);
 
     try {
-      // Simulate API call to DALL-E with a timeout
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      // Generate a variety of random categories for more reliable image generation
+      const imageCategories = [
+        'landscape', 'portrait', 'animal', 'nature', 'city', 'abstract', 
+        'technology', 'food', 'architecture', 'art', 'space', 'ocean'
+      ];
       
-      // Generate a random number to avoid caching issues
-      const randomSeed = Math.floor(Math.random() * 1000);
+      // Create a timestamp to avoid caching issues
+      const timestamp = Date.now();
       
-      // Use a fixed category that always returns images
-      const imageCategories = ['nature', 'technology', 'abstract', 'art', 'space'];
+      // Use multiple random values for more variety
       const randomCategory = imageCategories[Math.floor(Math.random() * imageCategories.length)];
+      const randomSeed = Math.floor(Math.random() * 10000);
       
-      // Use Unsplash for demonstration - in a real app, this would be an AI service
-      const imageUrl = `https://source.unsplash.com/featured/600x600/?${randomCategory}&sig=${randomSeed}`;
+      // Use higher resolution images and multiple parameters to avoid caching
+      const imageUrl = `https://source.unsplash.com/featured/800x800/?${randomCategory},${prompt.split(' ').join(',')}&sig=${randomSeed}&t=${timestamp}`;
+      
       console.log("Attempting to generate image with URL:", imageUrl);
       
-      // Pre-fetch the image to ensure it's valid
-      const imgCheck = new Image();
-      
-      await new Promise<void>((resolve) => {
+      // Pre-load the image to ensure it's valid
+      await new Promise<void>((resolve, reject) => {
+        const imgCheck = new Image();
+        
+        const timeoutId = setTimeout(() => {
+          reject(new Error("Image loading timed out"));
+        }, 15000); // 15 second timeout
+        
         imgCheck.onload = () => {
-          console.log("Image pre-fetch successful");
+          console.log("Image pre-fetch successful:", imgCheck.src);
+          clearTimeout(timeoutId);
           resolve();
         };
         
         imgCheck.onerror = () => {
-          console.error("Pre-fetch image failed, using fallback");
-          resolve();
+          console.error("Pre-fetch image failed, trying fallback");
+          clearTimeout(timeoutId);
+          
+          // Try a different category as fallback
+          const fallbackCategory = imageCategories[Math.floor(Math.random() * imageCategories.length)];
+          imgCheck.src = `https://source.unsplash.com/featured/800x800/?${fallbackCategory}&sig=${Date.now()}`;
         };
         
         // Start loading the image
+        imgCheck.crossOrigin = "anonymous";
         imgCheck.src = imageUrl;
       });
 
@@ -146,6 +160,10 @@ export const ImageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           // First, fetch the image as a Blob
           const response = await fetch(imageUrl);
           const blob = await response.blob();
+          
+          if (!blob || blob.size === 0) {
+            throw new Error("Empty image blob received");
+          }
           
           // Create a file from the blob
           const file = new File([blob], `image-${Date.now()}.jpg`, { type: 'image/jpeg' });

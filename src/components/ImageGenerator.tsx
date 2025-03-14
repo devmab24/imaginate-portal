@@ -13,6 +13,8 @@ import { useImage, GeneratedImage } from '@/contexts/ImageContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 import { Card } from '@/components/ui/card';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Progress } from '@/components/ui/progress';
 
 const ImageGenerator = () => {
   const [prompt, setPrompt] = useState('');
@@ -21,12 +23,24 @@ const ImageGenerator = () => {
   const [currentImage, setCurrentImage] = useState<GeneratedImage | null>(null);
   const [imageLoaded, setImageLoaded] = useState(false);
   const [imageError, setImageError] = useState(false);
+  const [progress, setProgress] = useState(0);
 
   // Reset image states when a new image is being generated
   useEffect(() => {
     if (isGenerating) {
       setImageLoaded(false);
       setImageError(false);
+      
+      // Simulate loading progress
+      setProgress(0);
+      const interval = setInterval(() => {
+        setProgress(prev => {
+          const newProgress = prev + 10;
+          return newProgress > 90 ? 90 : newProgress;
+        });
+      }, 500);
+      
+      return () => clearInterval(interval);
     }
   }, [isGenerating]);
 
@@ -46,6 +60,7 @@ const ImageGenerator = () => {
       console.log("Image generation successful, URL:", result.imageUrl);
       setCurrentImage(result);
       setPrompt('');
+      setProgress(100);
     }
   };
 
@@ -53,7 +68,12 @@ const ImageGenerator = () => {
     if (!currentImage) return;
     
     try {
-      const response = await fetch(currentImage.imageUrl);
+      // Add a timestamp parameter to avoid cache issues
+      const imageUrl = currentImage.imageUrl.includes('?') 
+        ? `${currentImage.imageUrl}&t=${Date.now()}` 
+        : `${currentImage.imageUrl}?t=${Date.now()}`;
+        
+      const response = await fetch(imageUrl);
       const blob = await response.blob();
       
       // Create a download link and trigger it
@@ -75,13 +95,25 @@ const ImageGenerator = () => {
     console.log("Image loaded successfully");
     setImageLoaded(true);
     setImageError(false);
+    setProgress(100);
   };
 
   const handleImageError = (e: React.SyntheticEvent<HTMLImageElement>) => {
     console.error("Image failed to load:", currentImage?.imageUrl);
     setImageError(true);
     setImageLoaded(false);
-    e.currentTarget.src = "/placeholder.svg";
+    
+    // Try to reload the image with a cache-busting parameter
+    if (currentImage && !currentImage.imageUrl.includes('t=')) {
+      const newUrl = currentImage.imageUrl.includes('?') 
+        ? `${currentImage.imageUrl}&t=${Date.now()}` 
+        : `${currentImage.imageUrl}?t=${Date.now()}`;
+      
+      console.log("Attempting to load image with cache-busting:", newUrl);
+      e.currentTarget.src = newUrl;
+    } else {
+      e.currentTarget.src = "/placeholder.svg";
+    }
   };
 
   return (
@@ -124,6 +156,9 @@ const ImageGenerator = () => {
 
       {isGenerating && (
         <div className="mt-8 p-8 border-2 border-dashed border-imaginate-gray/30 rounded-lg flex flex-col items-center justify-center">
+          <div className="w-full max-w-md mb-4">
+            <Progress value={progress} className="h-2 bg-gray-100" />
+          </div>
           <div className="relative w-16 h-16 mb-4">
             <div className="absolute inset-0 bg-gradient-to-r from-imaginate-purple to-imaginate-blue opacity-20 rounded-full animate-pulse"></div>
             <Loader2 className="animate-spin absolute inset-0 m-auto text-imaginate-purple" size={32} />
@@ -138,7 +173,8 @@ const ImageGenerator = () => {
           <div className="relative group">
             {!imageLoaded && !imageError && (
               <div className="w-full aspect-square flex items-center justify-center bg-gray-100">
-                <Loader2 className="animate-spin text-imaginate-purple" size={48} />
+                <Skeleton className="w-full h-full absolute" />
+                <Loader2 className="animate-spin text-imaginate-purple z-10" size={48} />
               </div>
             )}
             
@@ -148,12 +184,31 @@ const ImageGenerator = () => {
               className={`w-full h-auto object-cover rounded-t-lg ${!imageLoaded && !imageError ? 'hidden' : ''}`}
               onLoad={handleImageLoad}
               onError={handleImageError}
+              crossOrigin="anonymous"
             />
             
             {imageError && (
               <div className="w-full aspect-square flex flex-col items-center justify-center bg-gray-100 text-gray-500">
                 <ImageIcon size={48} />
                 <p className="mt-2">Could not load image</p>
+                <Button 
+                  onClick={() => {
+                    if (currentImage) {
+                      const reloadUrl = `${currentImage.imageUrl}?reload=${Date.now()}`;
+                      const img = document.createElement('img');
+                      img.src = reloadUrl;
+                      img.onload = () => {
+                        setCurrentImage({...currentImage, imageUrl: reloadUrl});
+                        setImageError(false);
+                      };
+                    }
+                  }}
+                  variant="outline"
+                  size="sm"
+                  className="mt-2"
+                >
+                  Try Again
+                </Button>
               </div>
             )}
             

@@ -1,11 +1,13 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Download, ImageIcon } from 'lucide-react';
+import { Download, ImageIcon, RefreshCw } from 'lucide-react';
 import { GeneratedImage } from '@/contexts/ImageContext';
 import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
+import { Skeleton } from '@/components/ui/skeleton';
 
 interface ImageCardProps {
   image: GeneratedImage;
@@ -16,6 +18,7 @@ const ImageCard: React.FC<ImageCardProps> = ({ image }) => {
   const [imageError, setImageError] = useState(false);
   const [imageUrl, setImageUrl] = useState(image.imageUrl);
   const { isAuthenticated } = useAuth();
+  const [retryCount, setRetryCount] = useState(0);
 
   useEffect(() => {
     const refreshSignedUrl = async () => {
@@ -49,7 +52,12 @@ const ImageCard: React.FC<ImageCardProps> = ({ image }) => {
 
   const handleDownload = async () => {
     try {
-      const response = await fetch(imageUrl);
+      // Add cache-busting parameter
+      const downloadUrl = imageUrl.includes('?') 
+        ? `${imageUrl}&t=${Date.now()}` 
+        : `${imageUrl}?t=${Date.now()}`;
+      
+      const response = await fetch(downloadUrl);
       const blob = await response.blob();
       
       const downloadLink = document.createElement('a');
@@ -67,15 +75,40 @@ const ImageCard: React.FC<ImageCardProps> = ({ image }) => {
   };
 
   const handleImageLoad = () => {
+    console.log("Image loaded successfully:", imageUrl);
     setImageLoaded(true);
     setImageError(false);
   };
 
   const handleImageError = (e: React.SyntheticEvent<HTMLImageElement>) => {
     console.error("Image failed to load:", imageUrl);
-    setImageError(true);
-    setImageLoaded(false);
-    e.currentTarget.src = "/placeholder.svg";
+    
+    // Try to reload with cache busting if we haven't tried too many times
+    if (retryCount < 2) {
+      setRetryCount(prev => prev + 1);
+      const newUrl = imageUrl.includes('?') 
+        ? `${imageUrl}&retry=${Date.now()}` 
+        : `${imageUrl}?retry=${Date.now()}`;
+      console.log("Retrying with new URL:", newUrl);
+      setImageUrl(newUrl);
+    } else {
+      setImageError(true);
+      setImageLoaded(false);
+      e.currentTarget.src = "/placeholder.svg";
+    }
+  };
+
+  const handleRetry = () => {
+    setImageError(false);
+    setRetryCount(0);
+    
+    // Create a new URL with cache busting
+    const refreshedUrl = imageUrl.includes('?') 
+      ? imageUrl.split('?')[0] + `?refresh=${Date.now()}` 
+      : `${imageUrl}?refresh=${Date.now()}`;
+    
+    console.log("Manually retrying with URL:", refreshedUrl);
+    setImageUrl(refreshedUrl);
   };
 
   return (
@@ -83,7 +116,8 @@ const ImageCard: React.FC<ImageCardProps> = ({ image }) => {
       <div className="relative group aspect-square">
         {!imageLoaded && !imageError && (
           <div className="w-full h-full flex items-center justify-center bg-gray-100">
-            <div className="animate-pulse w-12 h-12 rounded-full bg-gray-200"></div>
+            <Skeleton className="w-full h-full absolute" />
+            <div className="animate-pulse w-12 h-12 rounded-full bg-gray-200 z-10"></div>
           </div>
         )}
         
@@ -94,12 +128,22 @@ const ImageCard: React.FC<ImageCardProps> = ({ image }) => {
           loading="lazy"
           onLoad={handleImageLoad}
           onError={handleImageError}
+          crossOrigin="anonymous"
         />
         
         {imageError && (
           <div className="w-full h-full flex flex-col items-center justify-center bg-gray-100 text-gray-500">
             <ImageIcon size={32} />
             <p className="mt-2 text-xs">Image not available</p>
+            <Button
+              variant="outline"
+              size="sm"
+              className="mt-2 flex items-center gap-1"
+              onClick={handleRetry}
+            >
+              <RefreshCw size={14} />
+              <span>Retry</span>
+            </Button>
           </div>
         )}
         
