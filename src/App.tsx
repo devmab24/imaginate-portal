@@ -1,43 +1,40 @@
+import React, { useState, useEffect } from 'react';
+import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import Index from '@/pages/Index';
+import Dashboard from '@/pages/Dashboard';
+import History from '@/pages/History';
+import NotFound from '@/pages/NotFound';
+import { AuthProvider } from '@/contexts/AuthContext';
+import { ImageProvider } from '@/contexts/ImageContext';
+import { Toaster } from '@/components/ui/sonner';
+import Profile from '@/pages/Profile';
 
-import { Toaster } from "@/components/ui/toaster";
-import { Toaster as Sonner } from "@/components/ui/sonner";
-import { TooltipProvider } from "@/components/ui/tooltip";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
-import { AuthProvider } from "./contexts/AuthContext";
-import { ImageProvider } from "./contexts/ImageContext";
-import Index from "./pages/Index";
-import Dashboard from "./pages/Dashboard";
-import History from "./pages/History";
-import NotFound from "./pages/NotFound";
-import React from 'react';
+function App() {
+  const [loading, setLoading] = useState(true);
 
-// Function component wrapper to properly initialize the QueryClient
-const App = () => {
-  // Create a client inside the function component
-  const [queryClient] = React.useState(() => new QueryClient());
+  useEffect(() => {
+    // Simulate loading
+    setTimeout(() => {
+      setLoading(false);
+    }, 1000);
+  }, []);
 
   return (
-    <QueryClientProvider client={queryClient}>
-      <TooltipProvider>
-        <AuthProvider>
-          <ImageProvider>
-            <Toaster />
-            <Sonner />
-            <BrowserRouter>
-              <Routes>
-                <Route path="/" element={<Index />} />
-                <Route path="/dashboard" element={<Dashboard />} />
-                <Route path="/history" element={<History />} />
-                {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-                <Route path="*" element={<NotFound />} />
-              </Routes>
-            </BrowserRouter>
-          </ImageProvider>
-        </AuthProvider>
-      </TooltipProvider>
-    </QueryClientProvider>
+    <BrowserRouter>
+      <AuthProvider>
+        <ImageProvider>
+          <Routes>
+            <Route path="/" element={<Index />} />
+            <Route path="/dashboard" element={<Dashboard />} />
+            <Route path="/history" element={<History />} />
+            <Route path="/profile" element={<Profile />} />
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+          <Toaster />
+        </ImageProvider>
+      </AuthProvider>
+    </BrowserRouter>
   );
-};
+}
 
 export default App;

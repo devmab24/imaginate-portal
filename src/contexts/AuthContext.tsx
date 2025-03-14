@@ -9,6 +9,13 @@ type AuthUser = {
   id: string;
   email: string;
   name?: string;
+  avatarUrl?: string;
+  bio?: string;
+  website?: string;
+  location?: string;
+  subscriptionTier?: string;
+  credits?: number;
+  lastLogin?: string;
 };
 
 type AuthContextType = {
@@ -18,6 +25,7 @@ type AuthContextType = {
   login: (email: string, password: string) => Promise<void>;
   signup: (email: string, password: string, name?: string) => Promise<void>;
   logout: () => Promise<void>;
+  refreshUser: () => Promise<void>;
 };
 
 // Create the context with a default value
@@ -28,6 +36,7 @@ const AuthContext = createContext<AuthContextType>({
   login: async () => {},
   signup: async () => {},
   logout: async () => {},
+  refreshUser: async () => {},
 });
 
 // Custom hook to use the auth context
@@ -39,6 +48,60 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isLoading, setIsLoading] = useState(true);
   const [session, setSession] = useState<Session | null>(null);
 
+  // Fetch user profile data from the profiles table
+  const fetchUserProfile = async (userId: string) => {
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', userId)
+      .single();
+      
+    if (error) {
+      console.error('Error fetching user profile:', error);
+      return null;
+    }
+    
+    return data;
+  };
+
+  // Update user state with profile data
+  const setUserWithProfile = async (authUser: User) => {
+    const profile = await fetchUserProfile(authUser.id);
+    
+    if (profile) {
+      setUser({
+        id: authUser.id,
+        email: authUser.email || '',
+        name: profile.name,
+        avatarUrl: profile.avatar_url,
+        bio: profile.bio,
+        website: profile.website,
+        location: profile.location,
+        subscriptionTier: profile.subscription_tier,
+        credits: profile.credits,
+        lastLogin: profile.last_login,
+      });
+    } else {
+      // Fallback to just auth data if profile not found
+      setUser({
+        id: authUser.id,
+        email: authUser.email || '',
+        name: authUser.user_metadata.name,
+      });
+    }
+  };
+
+  // Refresh user data from the database
+  const refreshUser = async () => {
+    if (!session?.user) return;
+    
+    try {
+      await setUserWithProfile(session.user);
+    } catch (error) {
+      console.error('Error refreshing user data:', error);
+    }
+  };
+
   // Initialize auth state and setup listener for auth changes
   useEffect(() => {
     setIsLoading(true);
@@ -47,13 +110,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       if (session?.user) {
-        setUser({
-          id: session.user.id,
-          email: session.user.email || '',
-          name: session.user.user_metadata.name
+        setUserWithProfile(session.user).then(() => {
+          setIsLoading(false);
         });
+      } else {
+        setUser(null);
+        setIsLoading(false);
       }
-      setIsLoading(false);
     });
 
     // Listen for auth changes
@@ -61,11 +124,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       async (_event, session) => {
         setSession(session);
         if (session?.user) {
-          setUser({
-            id: session.user.id,
-            email: session.user.email || '',
-            name: session.user.user_metadata.name
-          });
+          await setUserWithProfile(session.user);
         } else {
           setUser(null);
         }
@@ -79,17 +138,33 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
   }, []);
 
+  // Update last login timestamp
+  const updateLastLogin = async (userId: string) => {
+    try {
+      await supabase
+        .from('profiles')
+        .update({ last_login: new Date().toISOString() })
+        .eq('id', userId);
+    } catch (error) {
+      console.error('Error updating last login:', error);
+    }
+  };
+
   // Login function
   const login = async (email: string, password: string) => {
     try {
       setIsLoading(true);
-      const { error } = await supabase.auth.signInWithPassword({
+      const { error, data } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
 
       if (error) {
         throw error;
+      }
+
+      if (data.user) {
+        await updateLastLogin(data.user.id);
       }
 
       toast.success('Logged in successfully!');
@@ -159,6 +234,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         login,
         signup,
         logout,
+        refreshUser,
       }}
     >
       {children}

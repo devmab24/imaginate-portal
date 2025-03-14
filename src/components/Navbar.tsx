@@ -11,7 +11,8 @@ import {
   LogOut, 
   Image as ImageIcon,
   History, 
-  Home
+  Home,
+  UserCircle
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -72,10 +73,14 @@ const Navbar = () => {
                 <DropdownMenuTrigger asChild>
                   <Button variant="outline" className="flex items-center space-x-2">
                     <User size={16} />
-                    <span>{user?.email?.split('@')[0]}</span>
+                    <span>{user?.name || user?.email?.split('@')[0]}</span>
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
+                  <DropdownMenuItem className="cursor-pointer" onClick={() => window.location.href = '/profile'}>
+                    <UserCircle size={16} className="mr-2" />
+                    My Profile
+                  </DropdownMenuItem>
                   <DropdownMenuItem className="cursor-pointer" onClick={() => window.location.href = '/dashboard'}>
                     <ImageIcon size={16} className="mr-2" />
                     Dashboard
@@ -129,6 +134,16 @@ const Navbar = () => {
               
               {isAuthenticated ? (
                 <>
+                  <Link 
+                    to="/profile" 
+                    className="px-2 py-1 rounded hover:bg-gray-100"
+                    onClick={() => setMobileMenuOpen(false)}
+                  >
+                    <div className="flex items-center space-x-2">
+                      <UserCircle size={18} />
+                      <span>My Profile</span>
+                    </div>
+                  </Link>
                   <Link 
                     to="/dashboard" 
                     className="px-2 py-1 rounded hover:bg-gray-100"

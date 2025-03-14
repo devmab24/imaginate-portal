@@ -35,22 +35,43 @@ export type Database = {
       }
       profiles: {
         Row: {
+          avatar_url: string | null
+          bio: string | null
           created_at: string
+          credits: number | null
           email: string | null
           id: string
+          last_login: string | null
+          location: string | null
           name: string | null
+          subscription_tier: string | null
+          website: string | null
         }
         Insert: {
+          avatar_url?: string | null
+          bio?: string | null
           created_at?: string
+          credits?: number | null
           email?: string | null
           id: string
+          last_login?: string | null
+          location?: string | null
           name?: string | null
+          subscription_tier?: string | null
+          website?: string | null
         }
         Update: {
+          avatar_url?: string | null
+          bio?: string | null
           created_at?: string
+          credits?: number | null
           email?: string | null
           id?: string
+          last_login?: string | null
+          location?: string | null
           name?: string | null
+          subscription_tier?: string | null
+          website?: string | null
         }
         Relationships: []
       }
