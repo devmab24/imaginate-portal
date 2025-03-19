@@ -66,7 +66,7 @@ const Navbar = () => {
           {/* Desktop Navigation */}
           <div className="hidden md:flex items-center space-x-6">
             <Link to="/" className="text-gray-600 hover:text-imaginate-purple transition-colors">Home</Link>
-            {isAuthenticated && (
+            {isAuthenticated && user && (
               <>
                 <Link to="/dashboard" className="text-gray-600 hover:text-imaginate-purple transition-colors">Dashboard</Link>
                 <Link to="/history" className="text-gray-600 hover:text-imaginate-purple transition-colors">History</Link>
