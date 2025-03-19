@@ -9,7 +9,8 @@ import {
   Loader2,
   ImageIcon
 } from 'lucide-react';
-import { useImage, GeneratedImage } from '@/contexts/ImageContext';
+import { useImage } from '@/contexts/ImageContext';
+import { GeneratedImage } from '@/types/database';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 import { Card } from '@/components/ui/card';

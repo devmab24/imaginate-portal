@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Download, ImageIcon, RefreshCw } from 'lucide-react';
-import { GeneratedImage } from '@/contexts/ImageContext';
+import { GeneratedImage } from '@/types/database';
 import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';

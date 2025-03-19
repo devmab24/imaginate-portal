@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import { useAuth } from './AuthContext';
@@ -52,20 +53,8 @@ export const ImageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       if (data) {
         const formattedImages: GeneratedImage[] = await Promise.all(
           data.map(async (item) => {
-            // Get image URL from storage
-            const { data: urlData, error: urlError } = await supabase
-              .storage
-              .from('images')
-              .createSignedUrl(item.storage_path || `${item.user_id}/${item.id}.jpg`, 60 * 60); // 1 hour expiry
-
-            const mappedImage = mapDbImageToImage(item);
-            
-            // If we have a storage path, use the signed URL
-            if (item.storage_path && !urlError && urlData) {
-              mappedImage.imageUrl = urlData.signedUrl;
-            }
-
-            return mappedImage;
+            // Map database item to our model
+            return mapDbImageToImage(item);
           })
         );
 
@@ -98,12 +87,18 @@ export const ImageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       // Wait briefly to simulate AI generation time
       await new Promise(resolve => setTimeout(resolve, 2000));
 
-      let newImage: GeneratedImage = {
+      const newImageData = {
         id: timestamp.toString(),
+        userId: user?.id || '',
         prompt,
         imageUrl,
+        cloudinaryPublicId: null,
+        width: 800,
+        height: 800,
         createdAt: new Date().toISOString(),
       };
+      
+      let newImage: GeneratedImage = newImageData;
       
       // Save to Supabase if user is logged in
       if (isAuthenticated && user) {
@@ -130,13 +125,21 @@ export const ImageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             throw uploadError;
           }
           
+          // Get public URL for the image
+          const { data: publicUrlData } = supabase
+            .storage
+            .from('images')
+            .getPublicUrl(filePath);
+          
           // Save metadata to 'images' table
           const { data: imageData, error: imageError } = await supabase
             .from('images')
             .insert({
               prompt,
-              storage_path: uploadData.path,
-              user_id: user.id
+              image_url: publicUrlData.publicUrl,
+              user_id: user.id,
+              width: 800,
+              height: 800
             })
             .select('*')
             .single();
@@ -145,23 +148,8 @@ export const ImageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             throw imageError;
           }
           
-          // Get signed URL for the uploaded image
-          const { data: urlData, error: urlError } = await supabase
-            .storage
-            .from('images')
-            .createSignedUrl(uploadData.path, 60 * 60); // 1 hour expiry
-            
-          if (urlError) {
-            throw urlError;
-          }
-          
           // Update newImage with Supabase data
-          newImage = {
-            id: imageData.id,
-            prompt: imageData.prompt,
-            imageUrl: urlData.signedUrl,
-            createdAt: imageData.created_at
-          };
+          newImage = mapDbImageToImage(imageData);
           
           // Refresh history after adding a new image
           await loadUserImages();
@@ -186,28 +174,6 @@ export const ImageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const clearHistory = async () => {
     if (isAuthenticated && user) {
       try {
-        // Get all user's images
-        const { data, error } = await supabase
-          .from('images')
-          .select('storage_path');
-          
-        if (error) {
-          throw error;
-        }
-        
-        // Delete from storage
-        if (data && data.length > 0) {
-          const paths = data.map(item => item.storage_path);
-          const { error: storageError } = await supabase
-            .storage
-            .from('images')
-            .remove(paths);
-            
-          if (storageError) {
-            console.error('Error removing from storage:', storageError);
-          }
-        }
-        
         // Delete from images table
         const { error: deleteError } = await supabase
           .from('images')
