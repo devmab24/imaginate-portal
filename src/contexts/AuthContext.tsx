@@ -1,21 +1,12 @@
-
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { Session, User } from '@supabase/supabase-js';
+import { Profile, mapDbProfileToProfile } from '@/types/database';
 
 // Define types for our authentication context
-type AuthUser = {
-  id: string;
+type AuthUser = Profile & {
   email: string;
-  name?: string;
-  avatarUrl?: string;
-  bio?: string;
-  website?: string;
-  location?: string;
-  subscriptionTier?: string;
-  credits?: number;
-  lastLogin?: string;
 };
 
 type AuthContextType = {
@@ -73,17 +64,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const profile = await fetchUserProfile(authUser.id);
     
     if (profile) {
+      const mappedProfile = mapDbProfileToProfile(profile);
       setUser({
-        id: authUser.id,
+        ...mappedProfile,
         email: authUser.email || '',
-        name: profile.name,
-        avatarUrl: profile.avatar_url,
-        bio: profile.bio,
-        website: profile.website,
-        location: profile.location,
-        subscriptionTier: profile.subscription_tier,
-        credits: profile.credits,
-        lastLogin: profile.last_login,
       });
     } else {
       // Fallback to just auth data if profile not found
@@ -91,6 +75,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         id: authUser.id,
         email: authUser.email || '',
         name: authUser.user_metadata.name,
+        avatarUrl: null,
+        bio: null,
+        website: null,
+        location: null,
+        subscriptionTier: 'free',
+        credits: 10,
+        lastLogin: null,
+        createdAt: null,
       });
     }
   };

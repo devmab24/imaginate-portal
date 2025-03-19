@@ -9,7 +9,86 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      [_ in never]: never
+      images: {
+        Row: {
+          cloudinary_public_id: string | null
+          created_at: string | null
+          height: number | null
+          id: string
+          image_url: string
+          prompt: string
+          user_id: string
+          width: number | null
+        }
+        Insert: {
+          cloudinary_public_id?: string | null
+          created_at?: string | null
+          height?: number | null
+          id?: string
+          image_url: string
+          prompt: string
+          user_id: string
+          width?: number | null
+        }
+        Update: {
+          cloudinary_public_id?: string | null
+          created_at?: string | null
+          height?: number | null
+          id?: string
+          image_url?: string
+          prompt?: string
+          user_id?: string
+          width?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "images_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          avatar_url: string | null
+          bio: string | null
+          created_at: string | null
+          credits: number | null
+          id: string
+          last_login: string | null
+          location: string | null
+          name: string | null
+          subscription_tier: string | null
+          website: string | null
+        }
+        Insert: {
+          avatar_url?: string | null
+          bio?: string | null
+          created_at?: string | null
+          credits?: number | null
+          id: string
+          last_login?: string | null
+          location?: string | null
+          name?: string | null
+          subscription_tier?: string | null
+          website?: string | null
+        }
+        Update: {
+          avatar_url?: string | null
+          bio?: string | null
+          created_at?: string | null
+          credits?: number | null
+          id?: string
+          last_login?: string | null
+          location?: string | null
+          name?: string | null
+          subscription_tier?: string | null
+          website?: string | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

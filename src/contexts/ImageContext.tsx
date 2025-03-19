@@ -1,15 +1,8 @@
-
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import { useAuth } from './AuthContext';
 import { supabase } from '@/integrations/supabase/client';
-
-export type GeneratedImage = {
-  id: string;
-  prompt: string;
-  imageUrl: string;
-  createdAt: string;
-};
+import { GeneratedImage, mapDbImageToImage } from '@/types/database';
 
 type ImageContextType = {
   generatedImages: GeneratedImage[];
@@ -63,24 +56,16 @@ export const ImageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             const { data: urlData, error: urlError } = await supabase
               .storage
               .from('images')
-              .createSignedUrl(item.storage_path, 60 * 60); // 1 hour expiry
+              .createSignedUrl(item.storage_path || `${item.user_id}/${item.id}.jpg`, 60 * 60); // 1 hour expiry
 
-            if (urlError) {
-              console.error('Error getting image URL:', urlError);
-              return {
-                id: item.id,
-                prompt: item.prompt,
-                imageUrl: '/placeholder.svg', // Fallback
-                createdAt: item.created_at,
-              };
+            const mappedImage = mapDbImageToImage(item);
+            
+            // If we have a storage path, use the signed URL
+            if (item.storage_path && !urlError && urlData) {
+              mappedImage.imageUrl = urlData.signedUrl;
             }
 
-            return {
-              id: item.id,
-              prompt: item.prompt,
-              imageUrl: urlData.signedUrl,
-              createdAt: item.created_at,
-            };
+            return mappedImage;
           })
         );
 

@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -66,6 +65,7 @@ const ProfileForm: React.FC = () => {
     return null;
   }
 
+  
   return (
     <Card className="w-full">
       <CardHeader>
