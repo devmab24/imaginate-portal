@@ -1,6 +1,6 @@
 
-import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { Link, useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
 import AuthModal from './AuthModal';
@@ -23,10 +23,18 @@ import {
 } from '@/components/ui/dropdown-menu';
 
 const Navbar = () => {
-  const { isAuthenticated, user, logout } = useAuth();
+  const { isAuthenticated, user, logout, refreshUser } = useAuth();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const [authMode, setAuthMode] = useState<'login' | 'signup'>('login');
+  const location = useLocation();
+
+  // Refresh user data when the navbar mounts or when auth state changes
+  useEffect(() => {
+    if (isAuthenticated) {
+      refreshUser();
+    }
+  }, [isAuthenticated, refreshUser]);
 
   const openLoginModal = () => {
     setAuthMode('login');
@@ -68,7 +76,7 @@ const Navbar = () => {
 
           {/* Auth Buttons */}
           <div className="hidden md:flex items-center space-x-4">
-            {isAuthenticated ? (
+            {isAuthenticated && user ? (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="outline" className="flex items-center space-x-2">
@@ -132,7 +140,7 @@ const Navbar = () => {
                 </div>
               </Link>
               
-              {isAuthenticated ? (
+              {isAuthenticated && user ? (
                 <>
                   <Link 
                     to="/profile" 

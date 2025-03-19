@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Navigate } from 'react-router-dom';
 import Navbar from '@/components/Navbar';
 import ProfileCard from '@/components/ProfileCard';
@@ -7,7 +7,14 @@ import ProfileForm from '@/components/ProfileForm';
 import { useAuth } from '@/contexts/AuthContext';
 
 const Profile = () => {
-  const { isAuthenticated, isLoading } = useAuth();
+  const { isAuthenticated, isLoading, user, refreshUser } = useAuth();
+
+  // Call refreshUser when the component mounts to ensure we have the latest user data
+  useEffect(() => {
+    if (isAuthenticated) {
+      refreshUser();
+    }
+  }, [isAuthenticated, refreshUser]);
 
   // Handle loading state
   if (isLoading) {
@@ -22,7 +29,7 @@ const Profile = () => {
   }
 
   // Redirect if not authenticated
-  if (!isAuthenticated) {
+  if (!isAuthenticated || !user) {
     return <Navigate to="/" />;
   }
 
