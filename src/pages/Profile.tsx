@@ -11,31 +11,31 @@ const Profile = () => {
   const [pageLoading, setPageLoading] = useState(true);
   const navigate = useNavigate();
 
-  // Call refreshUser when the component mounts to ensure we have the latest user data
+  // Initialize page and refresh user data
   useEffect(() => {
     console.log("Profile page - Auth state:", isAuthenticated ? "authenticated" : "not authenticated");
     console.log("Profile page - User:", user ? "exists" : "null");
     
-    const initPage = async () => {
-      try {
-        setPageLoading(true);
-        if (isAuthenticated) {
-          await refreshUser();
-        }
-      } catch (error) {
-        console.error("Error initializing profile page:", error);
-      } finally {
-        setPageLoading(false);
-      }
-    };
-
     if (!isLoading) {
+      const initPage = async () => {
+        try {
+          setPageLoading(true);
+          if (isAuthenticated && user) {
+            await refreshUser();
+          }
+        } catch (error) {
+          console.error("Error initializing profile page:", error);
+        } finally {
+          setPageLoading(false);
+        }
+      };
+      
       initPage();
     }
-  }, [isAuthenticated, isLoading, refreshUser]);
+  }, [isAuthenticated, isLoading, refreshUser, user]);
 
   // Handle loading state
-  if (isLoading || pageLoading) {
+  if (isLoading) {
     return (
       <div className="min-h-screen flex flex-col">
         <Navbar />

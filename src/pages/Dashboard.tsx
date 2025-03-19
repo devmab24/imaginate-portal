@@ -18,26 +18,26 @@ const Dashboard = () => {
     console.log("Dashboard page - Auth state:", isAuthenticated ? "authenticated" : "not authenticated");
     console.log("Dashboard page - User:", user ? "exists" : "null");
     
-    const initPage = async () => {
-      try {
-        setPageLoading(true);
-        if (isAuthenticated) {
-          await refreshUser();
-        }
-      } catch (error) {
-        console.error("Error initializing dashboard page:", error);
-      } finally {
-        setPageLoading(false);
-      }
-    };
-
     if (!isLoading) {
+      const initPage = async () => {
+        try {
+          setPageLoading(true);
+          if (isAuthenticated && user) {
+            await refreshUser();
+          }
+        } catch (error) {
+          console.error("Error initializing dashboard page:", error);
+        } finally {
+          setPageLoading(false);
+        }
+      };
+      
       initPage();
     }
-  }, [isAuthenticated, isLoading, refreshUser]);
+  }, [isAuthenticated, isLoading, refreshUser, user]);
 
   // Handle loading state
-  if (isLoading || pageLoading) {
+  if (isLoading) {
     return (
       <div className="min-h-screen flex flex-col">
         <Navbar />

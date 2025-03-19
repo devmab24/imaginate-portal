@@ -34,26 +34,26 @@ const History = () => {
     console.log("History page - Auth state:", isAuthenticated ? "authenticated" : "not authenticated");
     console.log("History page - User:", user ? "exists" : "null");
     
-    const initPage = async () => {
-      try {
-        setPageLoading(true);
-        if (isAuthenticated) {
-          await refreshUser();
-        }
-      } catch (error) {
-        console.error("Error initializing history page:", error);
-      } finally {
-        setPageLoading(false);
-      }
-    };
-
     if (!isLoading) {
+      const initPage = async () => {
+        try {
+          setPageLoading(true);
+          if (isAuthenticated && user) {
+            await refreshUser();
+          }
+        } catch (error) {
+          console.error("Error initializing history page:", error);
+        } finally {
+          setPageLoading(false);
+        }
+      };
+      
       initPage();
     }
-  }, [isAuthenticated, isLoading, refreshUser]);
+  }, [isAuthenticated, isLoading, refreshUser, user]);
 
   // Handle loading state
-  if (isLoading || pageLoading) {
+  if (isLoading) {
     return (
       <div className="min-h-screen flex flex-col">
         <Navbar />
