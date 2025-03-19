@@ -46,53 +46,71 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // Fetch user profile data from the profiles table
   const fetchUserProfile = async (userId: string) => {
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', userId)
-      .single();
+    try {
+      console.log("Fetching profile for user ID:", userId);
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', userId)
+        .single();
+        
+      if (error) {
+        console.error('Error fetching user profile:', error);
+        return null;
+      }
       
-    if (error) {
-      console.error('Error fetching user profile:', error);
+      console.log("Profile data retrieved:", data);
+      return data;
+    } catch (err) {
+      console.error("Exception fetching profile:", err);
       return null;
     }
-    
-    return data;
   };
 
   // Update user state with profile data
   const setUserWithProfile = async (authUser: User) => {
-    const profile = await fetchUserProfile(authUser.id);
-    
-    if (profile) {
-      const mappedProfile = mapDbProfileToProfile(profile);
-      setUser({
-        ...mappedProfile,
-        email: authUser.email || '',
-      });
-    } else {
-      // Fallback to just auth data if profile not found
-      setUser({
-        id: authUser.id,
-        email: authUser.email || '',
-        name: authUser.user_metadata.name,
-        avatarUrl: null,
-        bio: null,
-        website: null,
-        location: null,
-        subscriptionTier: 'free',
-        credits: 10,
-        lastLogin: null,
-        createdAt: null,
-      });
+    try {
+      console.log("Setting user with profile for:", authUser.email);
+      const profile = await fetchUserProfile(authUser.id);
+      
+      if (profile) {
+        const mappedProfile = mapDbProfileToProfile(profile);
+        setUser({
+          ...mappedProfile,
+          email: authUser.email || '',
+        });
+        console.log("User state updated with profile data");
+      } else {
+        // Fallback to just auth data if profile not found
+        console.log("No profile found, using auth data only");
+        setUser({
+          id: authUser.id,
+          email: authUser.email || '',
+          name: authUser.user_metadata?.name || 'User',
+          avatarUrl: null,
+          bio: null,
+          website: null,
+          location: null,
+          subscriptionTier: 'free',
+          credits: 10,
+          lastLogin: null,
+          createdAt: null,
+        });
+      }
+    } catch (err) {
+      console.error("Exception in setUserWithProfile:", err);
     }
   };
 
   // Refresh user data from the database
   const refreshUser = async () => {
-    if (!session?.user) return;
+    if (!session?.user) {
+      console.log("No session user found during refresh");
+      return;
+    }
     
     try {
+      console.log("Refreshing user data for:", session.user.email);
       await setUserWithProfile(session.user);
     } catch (error) {
       console.error('Error refreshing user data:', error);
@@ -101,28 +119,47 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // Initialize auth state and setup listener for auth changes
   useEffect(() => {
+    console.log("Auth provider initializing");
     setIsLoading(true);
 
     // Get initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      if (session?.user) {
-        setUserWithProfile(session.user).then(() => {
-          setIsLoading(false);
-        });
-      } else {
+    const initializeAuth = async () => {
+      console.log("Getting initial session");
+      try {
+        const { data: sessionData } = await supabase.auth.getSession();
+        console.log("Initial session:", sessionData.session ? "exists" : "none");
+        setSession(sessionData.session);
+        
+        if (sessionData.session?.user) {
+          await setUserWithProfile(sessionData.session.user);
+        } else {
+          setUser(null);
+        }
+      } catch (err) {
+        console.error("Error getting initial session:", err);
         setUser(null);
+      } finally {
         setIsLoading(false);
       }
-    });
+    };
+
+    initializeAuth();
 
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (_event, session) => {
-        setSession(session);
-        if (session?.user) {
-          await setUserWithProfile(session.user);
+      async (_event, currentSession) => {
+        console.log("Auth state changed:", _event);
+        setSession(currentSession);
+        setIsLoading(true);
+        
+        if (currentSession?.user) {
+          console.log("User is authenticated in auth change");
+          await setUserWithProfile(currentSession.user);
+          if (_event === 'SIGNED_IN') {
+            await updateLastLogin(currentSession.user.id);
+          }
         } else {
+          console.log("User is not authenticated in auth change");
           setUser(null);
         }
         setIsLoading(false);
@@ -131,6 +168,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     // Cleanup subscription on unmount
     return () => {
+      console.log("Cleaning up auth subscription");
       subscription.unsubscribe();
     };
   }, []);
@@ -138,10 +176,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Update last login timestamp
   const updateLastLogin = async (userId: string) => {
     try {
+      console.log("Updating last login for user:", userId);
       await supabase
         .from('profiles')
         .update({ last_login: new Date().toISOString() })
         .eq('id', userId);
+      console.log("Last login updated successfully");
     } catch (error) {
       console.error('Error updating last login:', error);
     }
@@ -301,12 +341,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const logout = async () => {
     try {
       setIsLoading(true);
+      console.log("Attempting to log out");
       const { error } = await supabase.auth.signOut();
       
       if (error) {
+        console.error('Logout error details:', error);
         throw error;
       }
       
+      setUser(null);
+      console.log("User logged out successfully");
       toast.success('Logged out successfully!');
     } catch (error) {
       console.error('Logout error:', error);

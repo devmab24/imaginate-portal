@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
 import AuthModal from './AuthModal';
@@ -28,9 +28,11 @@ const Navbar = () => {
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const [authMode, setAuthMode] = useState<'login' | 'signup'>('login');
   const location = useLocation();
+  const navigate = useNavigate();
 
   // Refresh user data when the navbar mounts or when auth state changes
   useEffect(() => {
+    console.log("Navbar useEffect - Auth state:", isAuthenticated ? "authenticated" : "not authenticated");
     if (isAuthenticated) {
       refreshUser();
     }
@@ -47,7 +49,18 @@ const Navbar = () => {
   };
 
   const handleLogout = async () => {
-    await logout();
+    try {
+      await logout();
+      setMobileMenuOpen(false);
+      // Navigate to home after logout
+      navigate('/');
+    } catch (error) {
+      console.error("Logout error:", error);
+    }
+  };
+
+  const navigateTo = (path: string) => {
+    navigate(path);
     setMobileMenuOpen(false);
   };
 
@@ -85,20 +98,32 @@ const Navbar = () => {
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
-                  <DropdownMenuItem className="cursor-pointer" onClick={() => window.location.href = '/profile'}>
+                  <DropdownMenuItem 
+                    className="cursor-pointer" 
+                    onClick={() => navigate('/profile')}
+                  >
                     <UserCircle size={16} className="mr-2" />
                     My Profile
                   </DropdownMenuItem>
-                  <DropdownMenuItem className="cursor-pointer" onClick={() => window.location.href = '/dashboard'}>
+                  <DropdownMenuItem 
+                    className="cursor-pointer" 
+                    onClick={() => navigate('/dashboard')}
+                  >
                     <ImageIcon size={16} className="mr-2" />
                     Dashboard
                   </DropdownMenuItem>
-                  <DropdownMenuItem className="cursor-pointer" onClick={() => window.location.href = '/history'}>
+                  <DropdownMenuItem 
+                    className="cursor-pointer" 
+                    onClick={() => navigate('/history')}
+                  >
                     <History size={16} className="mr-2" />
                     History
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem className="cursor-pointer text-red-500" onClick={handleLogout}>
+                  <DropdownMenuItem 
+                    className="cursor-pointer text-red-500" 
+                    onClick={handleLogout}
+                  >
                     <LogOut size={16} className="mr-2" />
                     Logout
                   </DropdownMenuItem>
@@ -129,49 +154,37 @@ const Navbar = () => {
         {mobileMenuOpen && (
           <div className="md:hidden mt-4 pb-4">
             <div className="flex flex-col space-y-3">
-              <Link 
-                to="/" 
-                className="px-2 py-1 rounded hover:bg-gray-100"
-                onClick={() => setMobileMenuOpen(false)}
+              <button 
+                className="px-2 py-1 rounded hover:bg-gray-100 text-left flex items-center space-x-2"
+                onClick={() => navigateTo('/')}
               >
-                <div className="flex items-center space-x-2">
-                  <Home size={18} />
-                  <span>Home</span>
-                </div>
-              </Link>
+                <Home size={18} />
+                <span>Home</span>
+              </button>
               
               {isAuthenticated && user ? (
                 <>
-                  <Link 
-                    to="/profile" 
-                    className="px-2 py-1 rounded hover:bg-gray-100"
-                    onClick={() => setMobileMenuOpen(false)}
+                  <button 
+                    className="px-2 py-1 rounded hover:bg-gray-100 text-left flex items-center space-x-2"
+                    onClick={() => navigateTo('/profile')}
                   >
-                    <div className="flex items-center space-x-2">
-                      <UserCircle size={18} />
-                      <span>My Profile</span>
-                    </div>
-                  </Link>
-                  <Link 
-                    to="/dashboard" 
-                    className="px-2 py-1 rounded hover:bg-gray-100"
-                    onClick={() => setMobileMenuOpen(false)}
+                    <UserCircle size={18} />
+                    <span>My Profile</span>
+                  </button>
+                  <button 
+                    className="px-2 py-1 rounded hover:bg-gray-100 text-left flex items-center space-x-2"
+                    onClick={() => navigateTo('/dashboard')}
                   >
-                    <div className="flex items-center space-x-2">
-                      <ImageIcon size={18} />
-                      <span>Dashboard</span>
-                    </div>
-                  </Link>
-                  <Link 
-                    to="/history" 
-                    className="px-2 py-1 rounded hover:bg-gray-100"
-                    onClick={() => setMobileMenuOpen(false)}
+                    <ImageIcon size={18} />
+                    <span>Dashboard</span>
+                  </button>
+                  <button 
+                    className="px-2 py-1 rounded hover:bg-gray-100 text-left flex items-center space-x-2"
+                    onClick={() => navigateTo('/history')}
                   >
-                    <div className="flex items-center space-x-2">
-                      <History size={18} />
-                      <span>History</span>
-                    </div>
-                  </Link>
+                    <History size={18} />
+                    <span>History</span>
+                  </button>
                   <button 
                     onClick={handleLogout}
                     className="flex items-center space-x-2 px-2 py-1 text-left text-red-500 rounded hover:bg-red-50"

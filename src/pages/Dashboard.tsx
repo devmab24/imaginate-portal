@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import Navbar from '@/components/Navbar';
 import ImageGenerator from '@/components/ImageGenerator';
 import ImageCard from '@/components/ImageCard';
@@ -9,11 +9,35 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Navigate } from 'react-router-dom';
 
 const Dashboard = () => {
-  const { isAuthenticated, isLoading } = useAuth();
+  const { isAuthenticated, isLoading, user, refreshUser } = useAuth();
   const { history } = useImage();
+  const [pageLoading, setPageLoading] = useState(true);
+
+  // Initialize page and refresh user data
+  useEffect(() => {
+    console.log("Dashboard page - Auth state:", isAuthenticated ? "authenticated" : "not authenticated");
+    console.log("Dashboard page - User:", user ? "exists" : "null");
+    
+    const initPage = async () => {
+      try {
+        setPageLoading(true);
+        if (isAuthenticated) {
+          await refreshUser();
+        }
+      } catch (error) {
+        console.error("Error initializing dashboard page:", error);
+      } finally {
+        setPageLoading(false);
+      }
+    };
+
+    if (!isLoading) {
+      initPage();
+    }
+  }, [isAuthenticated, isLoading, refreshUser]);
 
   // Handle loading state
-  if (isLoading) {
+  if (isLoading || pageLoading) {
     return (
       <div className="min-h-screen flex flex-col">
         <Navbar />
@@ -25,7 +49,8 @@ const Dashboard = () => {
   }
 
   // Redirect if not authenticated
-  if (!isAuthenticated) {
+  if (!isAuthenticated || !user) {
+    console.log("Not authenticated, redirecting to home");
     return <Navigate to="/" />;
   }
 

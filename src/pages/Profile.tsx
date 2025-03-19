@@ -1,6 +1,6 @@
 
-import React, { useEffect } from 'react';
-import { Navigate } from 'react-router-dom';
+import React, { useEffect, useState } from 'react';
+import { Navigate, useNavigate } from 'react-router-dom';
 import Navbar from '@/components/Navbar';
 import ProfileCard from '@/components/ProfileCard';
 import ProfileForm from '@/components/ProfileForm';
@@ -8,16 +8,34 @@ import { useAuth } from '@/contexts/AuthContext';
 
 const Profile = () => {
   const { isAuthenticated, isLoading, user, refreshUser } = useAuth();
+  const [pageLoading, setPageLoading] = useState(true);
+  const navigate = useNavigate();
 
   // Call refreshUser when the component mounts to ensure we have the latest user data
   useEffect(() => {
-    if (isAuthenticated) {
-      refreshUser();
+    console.log("Profile page - Auth state:", isAuthenticated ? "authenticated" : "not authenticated");
+    console.log("Profile page - User:", user ? "exists" : "null");
+    
+    const initPage = async () => {
+      try {
+        setPageLoading(true);
+        if (isAuthenticated) {
+          await refreshUser();
+        }
+      } catch (error) {
+        console.error("Error initializing profile page:", error);
+      } finally {
+        setPageLoading(false);
+      }
+    };
+
+    if (!isLoading) {
+      initPage();
     }
-  }, [isAuthenticated, refreshUser]);
+  }, [isAuthenticated, isLoading, refreshUser]);
 
   // Handle loading state
-  if (isLoading) {
+  if (isLoading || pageLoading) {
     return (
       <div className="min-h-screen flex flex-col">
         <Navbar />
@@ -30,6 +48,7 @@ const Profile = () => {
 
   // Redirect if not authenticated
   if (!isAuthenticated || !user) {
+    console.log("Not authenticated, redirecting to home");
     return <Navigate to="/" />;
   }
 
