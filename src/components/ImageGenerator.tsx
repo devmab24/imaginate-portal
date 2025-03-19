@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -25,12 +24,14 @@ const ImageGenerator = () => {
   const [imageLoaded, setImageLoaded] = useState(false);
   const [imageError, setImageError] = useState(false);
   const [progress, setProgress] = useState(0);
+  const [isImageLoading, setIsImageLoading] = useState(false);
 
   // Reset image states when a new image is being generated
   useEffect(() => {
     if (isGenerating) {
       setImageLoaded(false);
       setImageError(false);
+      setIsImageLoading(true);
       
       // Simulate loading progress
       setProgress(0);
@@ -55,6 +56,7 @@ const ImageGenerator = () => {
     // Reset image states
     setImageLoaded(false);
     setImageError(false);
+    setIsImageLoading(true);
     
     const result = await generateImage(prompt);
     if (result) {
@@ -62,6 +64,19 @@ const ImageGenerator = () => {
       setCurrentImage(result);
       setPrompt('');
       setProgress(100);
+      // Pre-load the image to ensure it's in cache
+      const img = new Image();
+      img.onload = () => {
+        setImageLoaded(true);
+        setIsImageLoading(false);
+      };
+      img.onerror = () => {
+        setImageError(true);
+        setIsImageLoading(false);
+      };
+      img.src = result.imageUrl;
+    } else {
+      setIsImageLoading(false);
     }
   };
 
@@ -96,6 +111,7 @@ const ImageGenerator = () => {
     console.log("Image loaded successfully");
     setImageLoaded(true);
     setImageError(false);
+    setIsImageLoading(false);
     setProgress(100);
   };
 
@@ -103,6 +119,7 @@ const ImageGenerator = () => {
     console.error("Image failed to load:", currentImage?.imageUrl);
     setImageError(true);
     setImageLoaded(false);
+    setIsImageLoading(false);
     
     // Try to reload the image with a cache-busting parameter
     if (currentImage && !currentImage.imageUrl.includes('t=')) {
@@ -172,7 +189,7 @@ const ImageGenerator = () => {
       {currentImage && !isGenerating && (
         <Card className="mt-8 overflow-hidden">
           <div className="relative group">
-            {!imageLoaded && !imageError && (
+            {(isImageLoading || (!imageLoaded && !imageError)) && (
               <div className="w-full aspect-square flex items-center justify-center bg-gray-100">
                 <Skeleton className="w-full h-full absolute" />
                 <Loader2 className="animate-spin text-imaginate-purple z-10" size={48} />
@@ -182,7 +199,7 @@ const ImageGenerator = () => {
             <img 
               src={currentImage.imageUrl} 
               alt={currentImage.prompt}
-              className={`w-full h-auto object-cover rounded-t-lg ${!imageLoaded && !imageError ? 'hidden' : ''}`}
+              className={`w-full h-auto object-cover rounded-t-lg ${(!imageLoaded && !imageError) ? 'hidden' : ''}`}
               onLoad={handleImageLoad}
               onError={handleImageError}
               crossOrigin="anonymous"
@@ -196,12 +213,20 @@ const ImageGenerator = () => {
                   onClick={() => {
                     if (currentImage) {
                       const reloadUrl = `${currentImage.imageUrl}?reload=${Date.now()}`;
-                      const img = document.createElement('img');
-                      img.src = reloadUrl;
+                      setIsImageLoading(true);
+                      setImageError(false);
+                      const img = new Image();
                       img.onload = () => {
                         setCurrentImage({...currentImage, imageUrl: reloadUrl});
                         setImageError(false);
+                        setImageLoaded(true);
+                        setIsImageLoading(false);
                       };
+                      img.onerror = () => {
+                        setImageError(true);
+                        setIsImageLoading(false);
+                      };
+                      img.src = reloadUrl;
                     }
                   }}
                   variant="outline"

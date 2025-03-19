@@ -19,8 +19,22 @@ const ImageCard: React.FC<ImageCardProps> = ({ image }) => {
   const [imageUrl, setImageUrl] = useState(image.imageUrl);
   const { isAuthenticated } = useAuth();
   const [retryCount, setRetryCount] = useState(0);
+  const [isImageLoading, setIsImageLoading] = useState(true);
 
   useEffect(() => {
+    // Preload the image
+    const img = new Image();
+    img.onload = () => {
+      setImageLoaded(true);
+      setIsImageLoading(false);
+    };
+    img.onerror = () => {
+      setImageError(true);
+      setIsImageLoading(false);
+    };
+    img.src = imageUrl;
+    
+    // Refresh URL if needed
     const refreshSignedUrl = async () => {
       if (isAuthenticated && image.imageUrl.includes('token=') && image.imageUrl.includes('supabase')) {
         try {
@@ -39,6 +53,13 @@ const ImageCard: React.FC<ImageCardProps> = ({ image }) => {
             
             if (data) {
               setImageUrl(data.signedUrl);
+              // Preload the updated URL
+              const newImg = new Image();
+              newImg.onload = () => {
+                setImageLoaded(true);
+                setIsImageLoading(false);
+              };
+              newImg.src = data.signedUrl;
             }
           }
         } catch (error) {
@@ -78,6 +99,7 @@ const ImageCard: React.FC<ImageCardProps> = ({ image }) => {
     console.log("Image loaded successfully:", imageUrl);
     setImageLoaded(true);
     setImageError(false);
+    setIsImageLoading(false);
   };
 
   const handleImageError = (e: React.SyntheticEvent<HTMLImageElement>) => {
@@ -94,6 +116,7 @@ const ImageCard: React.FC<ImageCardProps> = ({ image }) => {
     } else {
       setImageError(true);
       setImageLoaded(false);
+      setIsImageLoading(false);
       e.currentTarget.src = "/placeholder.svg";
     }
   };
@@ -101,6 +124,7 @@ const ImageCard: React.FC<ImageCardProps> = ({ image }) => {
   const handleRetry = () => {
     setImageError(false);
     setRetryCount(0);
+    setIsImageLoading(true);
     
     // Create a new URL with cache busting
     const refreshedUrl = imageUrl.includes('?') 
@@ -114,7 +138,7 @@ const ImageCard: React.FC<ImageCardProps> = ({ image }) => {
   return (
     <Card className="overflow-hidden h-full flex flex-col">
       <div className="relative group aspect-square">
-        {!imageLoaded && !imageError && (
+        {isImageLoading && (
           <div className="w-full h-full flex items-center justify-center bg-gray-100">
             <Skeleton className="w-full h-full absolute" />
             <div className="animate-pulse w-12 h-12 rounded-full bg-gray-200 z-10"></div>
@@ -124,7 +148,7 @@ const ImageCard: React.FC<ImageCardProps> = ({ image }) => {
         <img 
           src={imageUrl} 
           alt={image.prompt}
-          className={`w-full h-full object-cover rounded-t-lg ${!imageLoaded && !imageError ? 'hidden' : ''}`}
+          className={`w-full h-full object-cover rounded-t-lg ${isImageLoading ? 'hidden' : ''}`}
           loading="lazy"
           onLoad={handleImageLoad}
           onError={handleImageError}
